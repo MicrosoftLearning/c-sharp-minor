@@ -579,8 +579,24 @@ public class Program
                 }
             }
         }
+        catch (TargetInvocationException ex)
+        {
+            // Unwrap the inner exception to get the real error
+            var innerEx = ex.InnerException ?? ex;
+            AddOutput($"Execution error (inner): {innerEx.GetType().Name}: {innerEx.Message}", "error");
+            if (innerEx.StackTrace != null)
+            {
+                AddOutput($"Stack trace: {innerEx.StackTrace}", "error");
+            }
+            return Task.FromResult($"Execution error: {innerEx.Message}");
+        }
         catch (Exception ex)
         {
+            AddOutput($"Execution error: {ex.GetType().Name}: {ex.Message}", "error");
+            if (ex.StackTrace != null)
+            {
+                AddOutput($"Stack trace: {ex.StackTrace}", "error");
+            }
             return Task.FromResult($"Execution error: {ex.Message}");
         }
         finally
