@@ -210,60 +210,34 @@
 
 @code {
     private string sourceCode = @"using System;
-using System.Text;
-
-public static class WebConsole
-{
-    private static StringBuilder _output = new StringBuilder();
-    
-    public static void WriteLine(string text = """")
-    {
-        _output.AppendLine(text);
-    }
-    
-    public static void Write(string text)
-    {
-        _output.Append(text);
-    }
-    
-    public static string GetOutput()
-    {
-        return _output.ToString();
-    }
-    
-    public static void Clear()
-    {
-        _output.Clear();
-    }
-}
 
 public class Program
 {
     public static void Main()
     {
-        WebConsole.WriteLine(""Hello from C# WebAssembly!"");
-        WebConsole.WriteLine(""This code runs real C# compilation and execution in your browser."");
-        WebConsole.WriteLine();
+        Console.WriteLine(""Hello from C# WebAssembly!"");
+        Console.WriteLine(""This code runs real C# compilation and execution in your browser."");
+        Console.WriteLine();
         
         // Basic variables
         string language = ""C#"";
         int year = 2025;
         bool isAwesome = true;
         
-        WebConsole.WriteLine($""Language: {language}"");
-        WebConsole.WriteLine($""Year: {year}"");
-        WebConsole.WriteLine($""Is awesome: {isAwesome}"");
-        WebConsole.WriteLine();
+        Console.WriteLine($""Language: {language}"");
+        Console.WriteLine($""Year: {year}"");
+        Console.WriteLine($""Is awesome: {isAwesome}"");
+        Console.WriteLine();
         
         // Simple loop
-        WebConsole.WriteLine(""Counting to 5:"");
+        Console.WriteLine(""Counting to 5:"");
         for (int i = 1; i <= 5; i++)
         {
-            WebConsole.WriteLine($""Count: {i}"");
+            Console.WriteLine($""Count: {i}"");
         }
         
-        WebConsole.WriteLine();
-        WebConsole.WriteLine(""C# compilation successful!"");
+        Console.WriteLine();
+        Console.WriteLine(""C# compilation successful!"");
     }
 }";
 
@@ -336,7 +310,65 @@ public class Program
     {
         try
         {
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            // Inject a Console replacement class that captures output
+            var consoleReplacementCode = @"
+using System;
+using System.Text;
+
+public static class Console
+{
+    private static StringBuilder _output = new StringBuilder();
+    
+    public static void WriteLine()
+    {
+        _output.AppendLine();
+    }
+    
+    public static void WriteLine(string value)
+    {
+        _output.AppendLine(value ?? """");
+    }
+    
+    public static void WriteLine(object value)
+    {
+        _output.AppendLine(value?.ToString() ?? """");
+    }
+    
+    public static void WriteLine(int value)
+    {
+        _output.AppendLine(value.ToString());
+    }
+    
+    public static void WriteLine(bool value)
+    {
+        _output.AppendLine(value.ToString());
+    }
+    
+    public static void Write(string value)
+    {
+        _output.Append(value ?? """");
+    }
+    
+    public static void Write(object value)
+    {
+        _output.Append(value?.ToString() ?? """");
+    }
+    
+    internal static string GetCapturedOutput()
+    {
+        return _output.ToString();
+    }
+    
+    internal static void ClearOutput()
+    {
+        _output.Clear();
+    }
+}
+";
+            
+            // Combine the console replacement with user code
+            var combinedCode = consoleReplacementCode + "\n" + code;
+            var syntaxTree = CSharpSyntaxTree.ParseText(combinedCode);
             
             // For WebAssembly, we need to manually build essential references
             var references = new List<MetadataReference>();
@@ -545,11 +577,11 @@ public class Program
     {
         try
         {
-            // First, clear any previous output from WebConsole
-            var webConsoleType = assembly.GetType("WebConsole");
-            if (webConsoleType != null)
+            // First, clear any previous output from our custom Console
+            var consoleType = assembly.GetType("Console");
+            if (consoleType != null)
             {
-                var clearMethod = webConsoleType.GetMethod("Clear", BindingFlags.Static | BindingFlags.Public);
+                var clearMethod = consoleType.GetMethod("ClearOutput", BindingFlags.Static | BindingFlags.NonPublic);
                 clearMethod?.Invoke(null, null);
             }
             
@@ -607,10 +639,10 @@ public class Program
                 }
             }
             
-            // Get output from WebConsole
-            if (webConsoleType != null)
+            // Get output from our custom Console
+            if (consoleType != null)
             {
-                var getOutputMethod = webConsoleType.GetMethod("GetOutput", BindingFlags.Static | BindingFlags.Public);
+                var getOutputMethod = consoleType.GetMethod("GetCapturedOutput", BindingFlags.Static | BindingFlags.NonPublic);
                 if (getOutputMethod != null)
                 {
                     var output = getOutputMethod.Invoke(null, null) as string;
