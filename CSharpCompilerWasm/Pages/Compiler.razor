@@ -25,37 +25,41 @@
             // Create input UI in the console
             const outputElement = document.getElementById('output');
             if (outputElement) {
+                // Create a container for the input line
+                const inputContainer = document.createElement('div');
+                inputContainer.style.display = 'flex';
+                inputContainer.style.alignItems = 'center';
+                inputContainer.style.width = '100%';
+                
                 // Add the prompt text
-                const promptDiv = document.createElement('div');
+                const promptDiv = document.createElement('span');
                 promptDiv.innerHTML = promptText;
                 promptDiv.style.color = '#17a2b8';
-                promptDiv.style.display = 'inline';
-                outputElement.appendChild(promptDiv);
+                inputContainer.appendChild(promptDiv);
+                
+                // Add the ">" indicator
+                const promptIndicator = document.createElement('span');
+                promptIndicator.textContent = '>';
+                promptIndicator.style.color = '#f0f6fc';
+                promptIndicator.style.marginLeft = '5px';
+                promptIndicator.style.marginRight = '5px';
+                promptIndicator.style.fontFamily = "'Consolas', 'Monaco', 'Courier New', monospace";
+                promptIndicator.style.fontSize = '13px';
+                promptIndicator.style.fontWeight = 'bold';
+                inputContainer.appendChild(promptIndicator);
                 
                 // Create input field
                 const inputField = document.createElement('input');
                 inputField.type = 'text';
                 inputField.style.backgroundColor = '#0d1117';
                 inputField.style.color = '#f0f6fc';
-                inputField.style.border = '1px solid #30363d';
-                inputField.style.borderRadius = '4px';
-                inputField.style.padding = '4px 8px';
+                inputField.style.border = 'none';
+                inputField.style.padding = '0';
                 inputField.style.fontFamily = "'Consolas', 'Monaco', 'Courier New', monospace";
                 inputField.style.fontSize = '13px';
-                inputField.style.marginLeft = '5px';
                 inputField.style.outline = 'none';
-                inputField.style.minWidth = '200px';
-                
-                // Focus styling
-                inputField.addEventListener('focus', () => {
-                    inputField.style.borderColor = '#007bff';
-                    inputField.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.25)';
-                });
-                
-                inputField.addEventListener('blur', () => {
-                    inputField.style.borderColor = '#30363d';
-                    inputField.style.boxShadow = 'none';
-                });
+                inputField.style.width = '100%';
+                inputField.style.flex = '1';
                 
                 // Handle input submission
                 inputField.addEventListener('keydown', (e) => {
@@ -68,7 +72,8 @@
                         valueSpan.style.color = '#f0f6fc';
                         inputField.parentNode.replaceChild(valueSpan, inputField);
                         
-                        // Add line break
+                        // Add the container to output and then add line break
+                        outputElement.appendChild(inputContainer);
                         const br = document.createElement('br');
                         outputElement.appendChild(br);
                         
@@ -79,7 +84,11 @@
                     }
                 });
                 
-                outputElement.appendChild(inputField);
+                // Add input field to container
+                inputContainer.appendChild(inputField);
+                
+                // Add container to output
+                outputElement.appendChild(inputContainer);
                 
                 // Focus the input field and scroll to bottom
                 inputField.focus();
@@ -655,7 +664,7 @@ public class Program
 <span class='success'>✓ Full C# language support</span><br/>
 <span class='success'>✓ True compilation error reporting</span><br/>
 <span class='success'>✓ All dependencies packaged as .wasm files</span><br/>
-<span class='success'>✓ Console.ReadLine() simulation with default inputs</span><br/><br/>
+<span class='success'>✓ Real Console.ReadLine() interactive input</span><br/><br/>
 <span class='info'>Click 'Compile & Run' to execute your C# code!</span><br/>
 ";
     private string systemOutput = @"<span class='info'>Real Blazor WebAssembly C# Compiler Ready!</span><br/>
@@ -665,7 +674,7 @@ public class Program
 <span class='success'>✓ Full C# language support</span><br/>
 <span class='success'>✓ True compilation error reporting</span><br/>
 <span class='success'>✓ All dependencies packaged as .wasm files</span><br/>
-<span class='success'>✓ Console.ReadLine() simulation with default inputs</span><br/><br/>
+<span class='success'>✓ Real Console.ReadLine() interactive input</span><br/><br/>
 <span class='info'>Click 'Compile & Run' to execute your C# code!</span><br/>
 ";
     private string userOutput = "";
@@ -1446,52 +1455,83 @@ public static class Console
     {
         try
         {
-            // For educational purposes, we'll use a simpler approach:
-            // Pre-populate the input queue with some default values for the sample program
-            
-            if (consoleType != null)
-            {
-                var addInputMethod = consoleType.GetMethod("AddInputLine", BindingFlags.Static | BindingFlags.NonPublic);
-                
-                // Add some default inputs for the sample program
-                addInputMethod?.Invoke(null, new object[] { "Student" }); // For "What is your name?"
-                addInputMethod?.Invoke(null, new object[] { "42" });      // For "Enter a number:"
-            }
-            
-            // Now execute the program with the pre-populated inputs
-            var parameters = mainMethod.GetParameters();
-            object?[] args = parameters.Length == 0 ? null : new object[] { new string[0] };
-            
-            mainMethod.Invoke(null, args);
-            
-            // Get the final output
+            var allInputs = new List<string>();
             var finalOutput = "";
-            if (consoleType != null)
+            
+            while (true)
             {
-                var getOutputMethod = consoleType.GetMethod("GetCapturedOutput", BindingFlags.Static | BindingFlags.NonPublic);
-                if (getOutputMethod != null)
+                // Clear the console for this execution attempt
+                if (consoleType != null)
                 {
-                    finalOutput = getOutputMethod.Invoke(null, null) as string ?? "";
+                    var clearMethod = consoleType.GetMethod("ClearOutput", BindingFlags.Static | BindingFlags.NonPublic);
+                    clearMethod?.Invoke(null, null);
+                    
+                    // Add all previously collected inputs
+                    var addInputMethod = consoleType.GetMethod("AddInputLine", BindingFlags.Static | BindingFlags.NonPublic);
+                    foreach (var input in allInputs)
+                    {
+                        addInputMethod?.Invoke(null, new object[] { input });
+                    }
+                }
+                
+                var parameters = mainMethod.GetParameters();
+                object?[] args = parameters.Length == 0 ? null : new object[] { new string[0] };
+                
+                try
+                {
+                    // Try to execute the program with current inputs
+                    mainMethod.Invoke(null, args);
+                    
+                    // If we get here, the program completed successfully
+                    if (consoleType != null)
+                    {
+                        var getOutputMethod = consoleType.GetMethod("GetCapturedOutput", BindingFlags.Static | BindingFlags.NonPublic);
+                        if (getOutputMethod != null)
+                        {
+                            finalOutput = getOutputMethod.Invoke(null, null) as string ?? "";
+                        }
+                    }
+                    break; // Success!
+                }
+                catch (TargetInvocationException ex) when (ex.InnerException?.Message == "READLINE_INPUT_REQUIRED")
+                {
+                    // The program needs more input
+                    // Get the current output to show what has been produced so far
+                    if (consoleType != null)
+                    {
+                        var getOutputMethod = consoleType.GetMethod("GetCapturedOutput", BindingFlags.Static | BindingFlags.NonPublic);
+                        if (getOutputMethod != null)
+                        {
+                            var currentOutput = getOutputMethod.Invoke(null, null) as string ?? "";
+                            
+                            // Display the current output (this includes any prompt text)
+                            AddUserOutput(currentOutput);
+                            StateHasChanged();
+                            await ScrollToBottom();
+                        }
+                    }
+                    
+                    // Get input from user
+                    var userInput = await JSRuntime.InvokeAsync<string>("promptForInput", "");
+                    
+                    // Add this input to our collection
+                    allInputs.Add(userInput);
+                    
+                    // Show the user input in the console
+                    AddUserOutput(userInput + "\n");
+                    StateHasChanged();
+                    await ScrollToBottom();
+                    
+                    // Continue the loop to restart execution with all inputs
+                    continue;
                 }
             }
             
-            // Add a note about the interactive input simulation
-            var resultOutput = finalOutput;
-            if (!string.IsNullOrEmpty(resultOutput))
-            {
-                resultOutput += "\n\n";
-            }
-            resultOutput += "🎯 Interactive Input Simulation:\n";
-            resultOutput += "• Name input: 'Student'\n";
-            resultOutput += "• Number input: '42'\n";
-            resultOutput += "\nNote: This demonstrates Console.ReadLine() functionality with simulated input.";
-            
-            return resultOutput;
+            return finalOutput;
         }
         catch (TargetInvocationException ex) when (ex.InnerException?.Message == "READLINE_INPUT_REQUIRED")
         {
-            // If we still get this error, it means our input queue was exhausted
-            return "Program execution completed with simulated input. More ReadLine() calls detected than expected.";
+            return "Program execution stopped - more input required than expected.";
         }
         catch (TargetInvocationException ex)
         {
