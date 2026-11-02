@@ -24,4 +24,8 @@ Try it online: [https://microsoftlearning.github.io/c-sharp-minor/](https://micr
 - **Editor**: Monaco Editor with C# language support
 - **References**: Basic.Reference.Assemblies.Net90 for WebAssembly compatibility
 
+### Publishing
+
+Publish-time trimming is disabled so framework methods used by dynamically compiled user code remain available at runtime. This increases the download size but prevents `MissingMethodException` errors for APIs such as `Convert.ToInt32(string)`, `decimal.Parse(string)`, and `string.ToUpper()`. Rebuild and redeploy the app for this setting to take effect.
+
 **Built with ❤️ using Blazor WebAssembly and Microsoft Roslyn**
